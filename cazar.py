@@ -19,6 +19,11 @@ DISCO_GB = int(os.getenv("DISCO_GB", "100"))
 CLAVE_SSH = os.environ["CLAVE_SSH"].strip()
 
 
+def aviso(nivel, texto):
+    """Muestra el resultado en la pantalla de resumen de GitHub (Annotations)."""
+    print(f"::{nivel} title=Resultado::{texto}")
+
+
 def salida(clave, valor):
     ruta = os.getenv("GITHUB_OUTPUT")
     if ruta:
@@ -37,7 +42,7 @@ identidad = oci.identity.IdentityClient(config)
 # 1. ¿Ya existe?
 for inst in oci.pagination.list_call_get_all_results(compute.list_instances, tenancy).data:
     if inst.display_name == NOMBRE and inst.lifecycle_state not in ("TERMINATED", "TERMINATING"):
-        print(f"La instancia ya existe ({inst.lifecycle_state}): {inst.id}")
+        aviso("notice", f"La instancia ya existe ({inst.lifecycle_state}).")
         salida("creada", "true")
         sys.exit(0)
 
@@ -49,7 +54,7 @@ subredes = [
     if s.lifecycle_state == "AVAILABLE" and not s.prohibit_public_ip_on_vnic
 ]
 if not subredes:
-    print("ERROR: no hay ninguna subred pública. Creá una VCN con el asistente de Oracle.")
+    aviso("error", "No hay ninguna subred pública. Creá una VCN con el asistente de Oracle.")
     sys.exit(1)
 subred = subredes[0]
 
@@ -63,7 +68,7 @@ imagenes = compute.list_images(
 ).data
 imagenes = [i for i in imagenes if "Minimal" not in i.display_name]
 if not imagenes:
-    print("ERROR: no se encontró la imagen de Ubuntu 24.04 para ARM.")
+    aviso("error", "No se encontró la imagen de Ubuntu 24.04 para ARM.")
     sys.exit(1)
 imagen = imagenes[0]
 
@@ -92,14 +97,17 @@ try:
     inst = compute.launch_instance(detalles).data
 except oci.exceptions.ServiceError as e:
     texto = f"{e.code}: {e.message}"
-    if e.status == 429 or "capacity" in (e.message or "").lower():
-        print(f"Sin suerte esta vez, se reintenta en la próxima ejecución. ({texto})")
+    if e.status == 429:
+        aviso("notice", "Oracle frenó por exceso de pedidos. Se reintenta en la próxima ejecución.")
+        sys.exit(0)
+    if "capacity" in (e.message or "").lower():
+        aviso("notice", "Sin capacidad en Santiago. Se reintenta en la próxima ejecución.")
         sys.exit(0)
     if e.status == 400 and "LimitExceeded" in (e.code or ""):
-        print(f"ERROR: se superó el límite gratuito de la cuenta. ({texto})")
+        aviso("error", f"Se superó el límite gratuito de la cuenta. ({texto})")
         sys.exit(1)
-    print(f"ERROR inesperado de Oracle. ({texto})")
+    aviso("error", f"Error inesperado de Oracle. ({texto})")
     sys.exit(1)
 
-print(f"¡INSTANCIA CREADA! {inst.id} (estado {inst.lifecycle_state})")
+aviso("notice", f"¡INSTANCIA CREADA! Estado {inst.lifecycle_state}.")
 salida("creada", "true")
