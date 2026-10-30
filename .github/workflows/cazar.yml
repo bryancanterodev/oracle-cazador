@@ -47,7 +47,8 @@ jobs:
           OCPUS: ${{ vars.OCPUS || '1' }}
           MEMORIA_GB: ${{ vars.MEMORIA_GB || '6' }}
           DISCO_GB: "100"
-          CLAVE_SSH: ${{ vars.CLAVE_SSH }}
+          # Clave SSH PÚBLICA (se puede compartir). La privada está solo en Bitwarden.
+          CLAVE_SSH: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDExBtVVqTeTHMeluU77raZyOfD1TpsKIE91hFuACE15/O035hhM97nStFRUQ4sqeEVc5mHQR7WNJyf1eEBWUY8llXu6nvszCjbxzUbb9wT5lsORXLdmY1jXIeiCT3DoCcDOJl8nYfdMfFj+0YogSYZ6UU05h0wwTIVqVAZEaK/sAs8vEt0T4tfoCqPGGbxkijXuP2df5yDAlB0Z/2sQNVtqNHWFelueamrbZDEko6hM+STj/XRvm0sEftTvbTqpHbTTNeJaHX9OMR8vxRoJYBtGm7cB8X20QpclyW5RKW7G6RsPNleMcVoTxeluMLLUxV1gRbLA9LgcLM0RqCLqAOr ssh-key-2026-10-30"
         run: python cazar.py
 
       - name: Apagar el cazador y avisar
