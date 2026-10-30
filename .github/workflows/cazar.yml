@@ -3,8 +3,12 @@ name: Cazar instancia Oracle
 on:
   schedule:
     - cron: "*/5 * * * *"   # cada 5 minutos (GitHub a veces lo retrasa un poco)
-  workflow_dispatch:         # botón para ejecutarlo a mano
+  workflow_dispatch:         # botón para ejecutarlo a mano (y la cadena automática)
+  push:
+    branches: [main]
+    paths: ["cazar.py", ".github/workflows/cazar.yml"]
 
+# Una sola ejecución a la vez; si llega otra mientras corre, queda una en espera.
 concurrency:
   group: cazar
   cancel-in-progress: false
@@ -17,7 +21,7 @@ permissions:
 jobs:
   intentar:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
 
@@ -60,3 +64,14 @@ jobs:
             --title "Instancia talurio-srv creada en Oracle" \
             --body "El cazador consiguió capacidad y creó la instancia. Ya me apagué solo. Entrá a Oracle → Instancias para ver la IP pública."
           gh workflow disable cazar.yml --repo "$GITHUB_REPOSITORY"
+
+      # Si no hubo suerte, espera y lanza la próxima ejecución, sin depender del
+      # horario de GitHub (que en repos nuevos tarda en arrancar). Si hubo un
+      # error, este paso no corre y la cadena se corta sola.
+      - name: Programar el próximo intento
+        if: success() && steps.cazar.outputs.creada != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 240
+          gh workflow run cazar.yml --repo "$GITHUB_REPOSITORY" --ref main
